@@ -1,0 +1,42 @@
+calculate angle using side lengths and gyro input:
+
+turn all wheels to angling position
+
+if camera feedback shows -5 degrees, rotate 5 degrees
+
+rotate robot -limelight angle degrees until gyro angle gyro input angle + limelight angle degrees
+
+
+limelightAngle = <proportion with lines>
+gyroAngle = get yaw or whatever from AHRS
+current sensor = gyro angle + limelight angle
+
+proportional loop set the setpoint to current sensor
+
+( proportional loop: set the speed of all movement motors to P * (current sensor - desired sensor) )
+
+if now the current sensor is X degrees away from target, move on to next step...
+
+
+strafe to limelight target:
+
+
+rotate all wheels to the strafe position
+
+set a proportional loop to the x position of the limelight and attach its outputs to wheel movement speed
+
+the desired value for the "sensor" is 0
+
+if now the crosshair is X units away from target, move on to next step...
+
+
+approach limelight target:
+
+
+rotate all wheels to the forward position
+
+set a proportional loop to the area of the limelight and attach its outputs to wheel movement speed
+
+the desired value for the area will be somewhere around 90
+
+if this value is reached, the search is complete
