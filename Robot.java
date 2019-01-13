@@ -31,11 +31,11 @@ public class Robot extends TimedRobot {
 			// CONTROLLABLE CONSTANTS
 	
 			final double CONTROL_SPEEDREDUCTION 	= 2; 	//teleop drivetrain inputs are divided by this number when turbo is NOT engaged
-			final double CONTROL_DEADZONE 	= 0.15; //minimum value before joystick inputs will be considered
+			final double CONTROL_DEADZONE 	= 0.21; //minimum value before joystick inputs will be considered
 
-			final double CONTROL_CAM_MOE = 2;	// margin of lateral error for that alignment process for the limelight
-			final double CONTROL_CAM_CORRECTBOTTOM = .25;	// lowest motor value to apply strafe during limelight correction
-			final double CONTROL_CAM_PROCEEDSPEED = .35;	// value at which to proceed towards target
+			final double CONTROL_CAM_MOE = 3;	// margin of lateral error for that alignment process for the limelight
+			final double CONTROL_CAM_CORRECTBOTTOM = .29;	// lowest motor value to apply strafe during limelight correction
+			final double CONTROL_CAM_PROCEEDSPEED = .38;	// value at which to proceed towards target
 			//=======================================
 			
 			// OTHER CONSTANTS
@@ -88,7 +88,9 @@ public class Robot extends TimedRobot {
 			NetworkTableEntry ledMode = limelightTable.getEntry("ledMode");	// 0 for on, 1 for off
 			NetworkTableEntry camMode = limelightTable.getEntry("camMode");	// 0 for main, 1 for driver view
 
-			double limelightX, limelightY, limelightArea, limelightHasTarget;
+			double limelightX, limelightY, limelightArea;
+			boolean limelightTargetFound = false;
+			double limelightInputTimer = -1;
 
 			// DEFINING HARDWARE
 
@@ -366,32 +368,61 @@ public class Robot extends TimedRobot {
 				SmartDashboard.putBoolean("limelightActive",limelightActive);
 				SmartDashboard.putBoolean("limelightSeeking",limelightSeeking);
 				// Run Limelight searching if active
-				if (limelightActive) {
+				if (limelightActive == true) {
 					ledMode.setNumber(0);	// turn leds on
 					camMode.setNumber(0);	// set cam to low-contrast view
 					limelightGather();
-					if (controlDriver.getRawButtonPressed(BUTTON_A) && limelightHasTarget == 1) {
+					if (controlDriver.getRawButtonPressed(BUTTON_RB) && limelightTargetFound == true) {
 						// Set seeking on
 						limelightSeeking = true;
 						limelightPhase = 1;
+						limelightInputTimer = 50;
+						System.out.println("seeking initiated");
 					}
-					if (limelightSeeking && limelightHasTarget == 1) {
-						// Track to a target if the target is still present
-						// Phase 1: line up laterally with the target
+					// Track to a target if the target is still present
+					if (limelightSeeking == true && limelightTargetFound == true) {
+
+						// Phase 1: angle flush with the robot
+
 						if (limelightPhase == 1) {
-							//double sign = Math.signum(limelightGetX());
-							swerve(0,Math.max(limelightX,CONTROL_CAM_CORRECTBOTTOM),0,false);
-							if ((-CONTROL_CAM_MOE < limelightX && limelightX < CONTROL_CAM_MOE) == true) {
-								limelightPhase = 2;
+							/*double sign = -Math.signum(limelightX);
+							swerve(0,sign * Math.max(Math.abs(limelightX),CONTROL_CAM_CORRECTBOTTOM),0,false);*/
+							// Omitted for now
+
+							limelightPhase = 2;
+							limelightInputTimer = 50;
+						}
+
+						// Phase 2: line up laterally with the target
+
+						if (limelightPhase == 2) {
+							
+							if (limelightInputTimer > 0) {
+								limelightInputTimer --;
+								swerve(0,.1,0,false);
+							} else swerve(0,proportionalLoop(.012,limelightX,0),0,false);
+
+							// Proceed to next step
+							if ((-CONTROL_CAM_MOE < limelightX && limelightX < CONTROL_CAM_MOE)) {
+								limelightPhase = 3;
+								limelightInputTimer = 50;
 							}
 						}
-						// Phase 2: proceed towards target
-						if (limelightPhase == 2) {
-							swerve(CONTROL_CAM_PROCEEDSPEED,0,0,false);
+
+						// Phase 3: proceed towards target
+
+						if (limelightPhase == 3) {
+							
+							if (limelightInputTimer > 0) {
+								limelightInputTimer --; 
+								swerve(.1,0,0,false);
+							} else swerve(proportionalLoop(.011,limelightArea,90),0,0,false);
+
+							// Proceed to next step
 							if (limelightArea >= 70) {
-								// Process finished
 								limelightPhase = 0;
 								limelightSeeking = false;
+								limelightInputTimer = 0;
 							}
 						}
 
@@ -476,6 +507,12 @@ public class Robot extends TimedRobot {
 				wheel[i].reset();
 			}
 		}
+
+		public void setAllWheels(double val) {
+			for (int i=0;i<=3;i++) {
+				motorDrive[i].set(val * wheel[i].getFlip());
+			}
+		}
 		
 		/**
 		 * Enables or disables a given array of four PIDController objects.
@@ -507,12 +544,24 @@ public class Robot extends TimedRobot {
 			double limelightX = tx.getDouble(0.0);
 			double limelightY = ty.getDouble(0.0);
 			double limelightArea = ta.getDouble(0.0);
-			double limelightHasTarget = tv.getDouble(0.0);
+			double ltv = tv.getDouble(0.0);
+			limelightTargetFound = false;
+			if (ltv != 1.0) limelightTargetFound = false; else limelightTargetFound = true;
 
 			// Write Limelight data table values to the dashboard
 			SmartDashboard.putNumber("LimelightX", limelightX);
 			SmartDashboard.putNumber("LimelightY", limelightY);
 			SmartDashboard.putNumber("LimelightArea", limelightArea);
-			SmartDashboard.putNumber("LimelightHasTarget", limelightHasTarget);
+			SmartDashboard.putBoolean("LimelightTargetFound", limelightTargetFound);
+		}
+		/**
+		 * Returns a value based on sensor inputs.
+		 * 
+		 * @param p - the proportional constant
+		 * @param currentSensor - whatever your current sensor value is
+		 * @param desiredSensor - whatever you want the sensor to become after change
+		 */
+		public double proportionalLoop(double p, double currentSensor, double desiredSensor) {
+			return p * (currentSensor - desiredSensor);
 		}
 }
