@@ -33,7 +33,7 @@ public class Robot extends TimedRobot {
 			final double CONTROL_SPEEDREDUCTION 	= 2; 	//teleop drivetrain inputs are divided by this number when turbo is NOT engaged
 			final double CONTROL_DEADZONE 	= 0.21; //minimum value before joystick inputs will be considered
 
-			final double CONTROL_CAM_MOE = 3;	// margin of lateral error for that alignment process for the limelight
+			final double CONTROL_CAM_MOE = 4.5;	// margin of lateral error for that alignment process for the limelight
 			final double CONTROL_CAM_CORRECTBOTTOM = .29;	// lowest motor value to apply strafe during limelight correction
 			final double CONTROL_CAM_PROCEEDSPEED = .38;	// value at which to proceed towards target
 			//=======================================
@@ -400,10 +400,12 @@ public class Robot extends TimedRobot {
 							if (limelightInputTimer > 0) {
 								limelightInputTimer --;
 								swerve(0,.1,0,false);
-							} else swerve(0,proportionalLoop(.012,limelightX,0),0,false);
-
+							} else {
+								swerve(0,-proportionalLoop(.035,tx.getDouble(0.0),0),0,false);
+								//SmartDashboard.putNumber("p-loop:",proportionalLoop(.035,tx.getDouble(0.0),0));
+							}
 							// Proceed to next step
-							if ((-CONTROL_CAM_MOE < limelightX && limelightX < CONTROL_CAM_MOE)) {
+							if ((-CONTROL_CAM_MOE < tx.getDouble(0.0) && tx.getDouble(0.0) < CONTROL_CAM_MOE)) {
 								limelightPhase = 3;
 								limelightInputTimer = 50;
 							}
@@ -416,7 +418,7 @@ public class Robot extends TimedRobot {
 							if (limelightInputTimer > 0) {
 								limelightInputTimer --; 
 								swerve(.1,0,0,false);
-							} else swerve(proportionalLoop(.011,limelightArea,90),0,0,false);
+							} else swerve(proportionalLoop(.004,ta.getDouble(0.0),90),-proportionalLoop(.018,tx.getDouble(0.0),0),0,false);
 
 							// Proceed to next step
 							if (limelightArea >= 70) {
@@ -430,6 +432,7 @@ public class Robot extends TimedRobot {
 						limelightSeeking = false;
 						limelightPhase = 0;
 					}
+					SmartDashboard.putNumber("limelightPhase:", limelightPhase);
 				} else {
 					// Limelight is not active, turn lights off
 					ledMode.setNumber(1);	// turn leds off
@@ -537,7 +540,8 @@ public class Robot extends TimedRobot {
 		}
 		
 		/**
-		 * Reads and posts network table values acquired from Limelight
+		 * Reads and posts network table values acquired from Limelight to the Smart Dashboard. Also creates the limelightTargetFound variable.
+		 * Don't bother trying to read the values that this function sets, they're all garbage and they always equal 0.0 for some reason. Use the other defined Limelight functions for that.
 		 */
 		public void limelightGather() {
 			// Read Limelight data table values
