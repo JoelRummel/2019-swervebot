@@ -545,9 +545,9 @@ public class Robot extends TimedRobot {
 		 */
 		public void limelightGather() {
 			// Read Limelight data table values
-			double limelightX = tx.getDouble(0.0);
-			double limelightY = ty.getDouble(0.0);
-			double limelightArea = ta.getDouble(0.0);
+			limelightX = tx.getDouble(0.0);
+			limelightY = ty.getDouble(0.0);
+			limelightArea = ta.getDouble(0.0);
 			double ltv = tv.getDouble(0.0);
 			limelightTargetFound = false;
 			if (ltv != 1.0) limelightTargetFound = false; else limelightTargetFound = true;
